@@ -89,7 +89,6 @@ impl Instance {
             cgmath::Matrix4::from_translation(self.position) * cgmath::Matrix4::from(self.rotation);
         InstanceRaw {
             model: model.into(),
-            // NEW!
             normal: cgmath::Matrix3::from(self.rotation).into(),
         }
     }
@@ -108,20 +107,15 @@ impl model::Vertex for InstanceRaw {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
-            // We need to switch from using a step mode of Vertex to Instance
-            // This means that our shaders will only change to use the next
-            // instance when the shader starts processing a new instance
+
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
                 wgpu::VertexAttribute {
                     offset: 0,
-                    // While our vertex shader only uses locations 0, and 1 now, in later tutorials, we'll
-                    // be using 2, 3, and 4 for Vertex. We'll start at slot 5 to not conflict with them later
                     shader_location: 5,
                     format: wgpu::VertexFormat::Float32x4,
                 },
-                // A mat4 takes up 4 vertex slots as it is technically 4 vec4s. We need to define a slot
-                // for each vec4. We don't have to do this in code, though.
+
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 6,
@@ -137,7 +131,6 @@ impl model::Vertex for InstanceRaw {
                     shader_location: 8,
                     format: wgpu::VertexFormat::Float32x4,
                 },
-                // NEW!
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
                     shader_location: 9,
@@ -161,16 +154,12 @@ impl model::Vertex for InstanceRaw {
 
 async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
 
-
-    let start_time = performance.now();
     // The instance is a handle to our GPU
-    // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
         ..Default::default()
     });
     
-
 
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
@@ -187,12 +176,9 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
             &wgpu::DeviceDescriptor {
                 label: None,
                 required_features: wgpu::Features::empty(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
                 required_limits: wgpu::Limits::downlevel_webgl2_defaults()
                
             },
-            // Some(&std::path::Path::new("trace")), // Trace path
             None, // Trace path
         )
         .await
@@ -259,9 +245,9 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
         });
 
     let camera = Camera {
-        eye: (0.0, 5.0, -10.0).into(),
-        target: (0.0, 0.0, 0.0).into(),
-        up: cgmath::Vector3::unit_y(),
+        eye: (-4.0, -10.0, 5.0).into(),
+        target: (-1.0, 0.0, 0.0).into(),
+        up: cgmath::Vector3::new(0.3, 0.0, 1.0),
         aspect: 1.0,
         fovy: 45.0,
         znear: 0.1,
@@ -303,7 +289,7 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
     });
     
     let light_uniform = LightUniform {
-        position: [-2.0, 15.0, -10.0],
+        position: [0.0, 0.0, 10.0],
         _padding: 0,
         color: [1.0, 1.0, 1.0],
         _padding2: 0,
@@ -373,66 +359,14 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
             .await
             .unwrap();
 
+    let depth_texture =
+            texture::Texture::create_depth_texture(&device, texture_size, "depth_texture");
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("shader.wgsl"),
         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
     });
-
-    let light_render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Light Pipeline Layout"),
-        bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-        push_constant_ranges: &[],
-    });
-    let light_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("Light Shader"),
-        source: wgpu::ShaderSource::Wgsl(include_str!("light.wgsl").into()),
-    });
-
-    let light_render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Light Render Pipeline"),
-        layout: Some(&light_render_pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &light_shader,
-            entry_point: "vs_main",
-            buffers: &[model::ModelVertex::desc()],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &light_shader,
-            entry_point: "fs_main",
-            targets: &[Some(wgpu::ColorTargetState {
-                format: texture_desc.format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-            // or Features::POLYGON_MODE_POINT
-            polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
-            unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        // If the pipeline will be used with a multiview render pass, this
-        // indicates how many array layers the attachments will have.
-        multiview: None,
-    });
-
+    
     let render_pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
@@ -473,7 +407,13 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
             // Requires Features::CONSERVATIVE_RASTERIZATION
             conservative: false,
         },
-        depth_stencil: None,
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: texture::Texture::DEPTH_FORMAT,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::Less,
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        }),
         multisample: wgpu::MultisampleState {
             count: 1,
             mask: !0,
@@ -506,13 +446,19 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
             occlusion_query_set: None,
             timestamp_writes: None,
         });
 
         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-        render_pass.set_pipeline(&light_render_pipeline); 
         render_pass.set_pipeline(&render_pipeline);
         render_pass.draw_model_instanced(
             &obj_model,
@@ -548,7 +494,7 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
     let (sender, receiver) = flume::bounded(1);
     buffer_slice.map_async(wgpu::MapMode::Read, move |r| sender.send(r).unwrap());
 
-    device.poll(wgpu::Maintain::wait()).panic_on_timeout();
+    device.poll(wgpu::Maintain::Wait);
 
     receiver.recv_async().await.unwrap().unwrap();
     {
@@ -574,15 +520,10 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
 
 
 #[wasm_bindgen]
-pub async fn run(stl_bytestream: &[u8]) -> Result<JsValue, JsValue> {
-
+pub async fn stl_to_png(stl_bytestream: &[u8]) -> Result<JsValue, JsValue> {
     console_log::init_with_level(Level::Debug);
-    //info!("test");
     let render = render(stl_bytestream).await;
-
     let uint8_array = Uint8Array::from(render.as_slice());
     let js_value: JsValue = uint8_array.into();
     Ok(js_value)
-
-
 }

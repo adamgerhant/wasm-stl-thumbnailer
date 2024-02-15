@@ -1,25 +1,32 @@
 [package]
-name = "tutorial9-models"
+name = "wasm-stl-thumbnailer"
 version = "0.1.0"
-authors = ["Ben Hansen <https://github.com/sotrh>"]
+authors = ["Adam Gerhant <https://github.com/adamgerhant>"]
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
 
 [dependencies]
 anyhow = "1.0"
 bytemuck = { version = "1.12", features = [ "derive" ] }
 cfg-if = "1"
 cgmath = "0.18"
-tobj = { version = "3.2", features = ["async"]}
-flume = "0.10.12"
+env_logger = "0.10"
 log = "0.4"
-console_log = "0.2"
-wgpu = { version = "0.19.1", features = ["webgl"] }
-wasm-bindgen = "0.2.90"
-wasm-bindgen-futures = "0.4.40"
+tobj = { version = "3.2", features = ["async"]}
 stl_io = "0.7.0"
+getrandom = { version = "0.2", features = ["js"] }
+flume = "0.10.12"
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+wgpu = { version = "0.19.1", features = ["webgl"]}
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = "=0.3.67"
+nalgebra = "0.32.3"
+
 
 [dependencies.image]
 version = "0.24"
@@ -27,11 +34,7 @@ default-features = false
 features = ["png", "jpeg"]
 
 
-[build-dependencies]
-anyhow = "1.0"
-fs_extra = "1.2"
-glob = "0.3"
-
 [[bin]]
 name = "tutorial9-models"
 path = "src/main.rs"
+

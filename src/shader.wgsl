@@ -72,12 +72,12 @@ var s_diffuse: sampler;
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     
-    let ambient_strength = 1.1;
+    let ambient_strength = 0.5;
     let ambient_color = light.color * ambient_strength;
 
     let light_dir = normalize(light.position - in.world_position);
 
-    let diffuse_strength = max(dot(in.world_normal, light_dir), 0.0);
+    let diffuse_strength =  dot(in.world_normal, light_dir);
     let diffuse_color = light.color * diffuse_strength;
 
     let result = (ambient_color + diffuse_color*0.5 ) * 0.5;

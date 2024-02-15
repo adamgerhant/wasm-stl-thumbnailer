@@ -5,8 +5,11 @@ use wgpu::util::DeviceExt;
 use image::{DynamicImage, Rgb, RgbImage};
 use console_log::log;
 use log::info;
+use nalgebra::{Vector3, Point3};
+
 
 use crate::{model, texture};
+
 
 
 pub async fn load_texture(
@@ -32,7 +35,7 @@ pub async fn load_model(
     buffer.copy_from_slice(&bytestream[80..84]);
     let num_triangles = u32::from_le_bytes(buffer);
     let expected_byte_count = 50*num_triangles+84;
-    let acual_byte_count = bytestream.len().try_into().unwrap();
+    let acual_byte_count = bytestream.len() as u32;
 
 
     let mut materials;
@@ -65,29 +68,97 @@ pub async fn load_model(
         });
 
         let mut stl_cursor = Cursor::new(bytestream);
-        let stl_mesh = stl_io::read_stl(&mut stl_cursor).unwrap();
-        let centroid_vertices: Vec<(f32, f32, f32)> = stl_mesh.vertices.iter()
+        let stl = stl_io::read_stl(&mut stl_cursor).unwrap();
+        
+        //let (vertices, indices) = stl::process_stl(stl);
+        let centroid_vertices: Vec<(f32, f32, f32)> = stl.vertices.iter()
             .map(|v| {            
                 (v[0], v[1], v[2])
             })
             .collect();
         let centroid = calculate_centroid(&centroid_vertices);
         let offset = (-centroid.0, -centroid.1, -centroid.2);
-
-        let (min_y, max_y) = calculate_height(&centroid_vertices);
-        let model_height = max_y - min_y;
+        let max_dimension = calculate_max_dimension(&centroid_vertices);
+        
         // Determine the scaling factor needed to achieve the desired height
-        let desired_height = 3.0; // Example desired height
-        let scaling_factor = desired_height / model_height;
+        let desired_height = 6.0; // Example desired height
+        let scaling_factor = desired_height / max_dimension;
 
-        let vertices = stl_mesh
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+
+        for (index, face) in stl.faces.iter().enumerate() {
+
+            for i in 0..3{
+                let current_index = index*3+i;
+                indices.push(current_index);
+
+                let vertice_index = face.vertices[i];
+                let current_vertex = stl.vertices[vertice_index].clone();
+                let offset_vertex = [
+                    (current_vertex[0] + offset.0)*scaling_factor,
+                    (current_vertex[1] + offset.1)*scaling_factor,
+                    (current_vertex[2] + offset.2)*scaling_factor,
+                ];
+                let model_vertex = model::ModelVertex {
+                    position: offset_vertex,
+                    tex_coords: [0.0, 0.0],
+                    normal: face.normal.into(),
+                };
+                vertices.push(model_vertex);
+
+            }
+    
+        
+        }
+    
+
+        //info!("vertices: {:#?}",vertices);
+        //info!("indices: {:#?}", indices);
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("STL Vertex Buffer")),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("STL Index Buffer")),
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let mesh_model = model::Mesh {
+            name: "STL model".to_string(),
+            vertex_buffer,
+            index_buffer,
+            num_elements: indices.len() as u32,
+            material: 0,
+        };
+        
+        /*
+        let centroid_vertices: Vec<(f32, f32, f32)> = stl.vertices.iter()
+            .map(|v| {            
+                (v[0], v[1], v[2])
+            })
+            .collect();
+        let centroid = calculate_centroid(&centroid_vertices);
+        let offset = (-centroid.0, -centroid.1, -centroid.2);
+        let max_dimension = calculate_max_dimension(&centroid_vertices);
+        
+        // Determine the scaling factor needed to achieve the desired height
+        let desired_height = 6.0; // Example desired height
+        let scaling_factor = desired_height / max_dimension;
+
+        let vertices = stl
             .vertices
             .iter()
             .enumerate()
             .map(|(i, vertex)| {
                 //check if normal data exists
-                let normal = if i < stl_mesh.faces.len() {
-                    (stl_mesh.faces[i].normal).into()
+                let normal = if i < stl.faces.len() {
+                    (stl.faces[i].normal).into()
                 } else {
                     [0.0, 0.0, 0.0] 
                 };
@@ -116,7 +187,7 @@ pub async fn load_model(
 
         let mut indices = Vec::new();
 
-        for face in &stl_mesh.faces {
+        for face in &stl.faces {
             let vertex_indices = [face.vertices[0], face.vertices[1], face.vertices[2]];
             indices.extend_from_slice(&vertex_indices);
         }
@@ -134,7 +205,7 @@ pub async fn load_model(
             num_elements: indices.len() as u32,
             material: 0,
         };
-        
+        */
         meshes = vec![mesh_model];
 
         
@@ -190,9 +261,11 @@ pub async fn load_model(
             })
         }
 
+
         meshes = models
             .into_iter()
             .map(|m| {
+                
                 let vertices = (0..m.mesh.positions.len() / 3)
                     .map(|i| model::ModelVertex {
                         position: [
@@ -208,6 +281,9 @@ pub async fn load_model(
                         ],
                     })
                     .collect::<Vec<_>>();
+
+                    info!("vertices: {:#?}",vertices);
+                    info!("indices: {:#?}", m.mesh.indices);
 
                 let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("mesh Vertex Buffer")),
@@ -244,8 +320,18 @@ fn calculate_centroid(vertices: &[(f32, f32, f32)]) -> (f32, f32, f32) {
 }
 
 
-fn calculate_height(vertices: &[(f32, f32, f32)]) -> (f32, f32) {
+fn calculate_max_dimension(vertices: &[(f32, f32, f32)]) -> f32 {
+    let min_x = vertices.iter().map(|v| v.0).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let max_x = vertices.iter().map(|v| v.0).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let width = max_x - min_x;
+
     let min_y = vertices.iter().map(|v| v.1).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
     let max_y = vertices.iter().map(|v| v.1).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-    (min_y, max_y)
+    let height = max_y-min_y;
+
+    let min_z = vertices.iter().map(|v| v.2).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let max_z = vertices.iter().map(|v| v.2).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let depth = max_z - min_z;
+
+    width.max(height).max(depth)
 }
