@@ -1,0 +1,11 @@
+{
+  "files": {
+    "main.js": "/wasm-performance/static/js/main.f716f45f.js",
+    "static/media/wasm_stl_thumbnailer_bg.wasm": "/wasm-performance/static/media/wasm_stl_thumbnailer_bg.bc42042ab0faaa75ef08.wasm",
+    "index.html": "/wasm-performance/index.html",
+    "main.f716f45f.js.map": "/wasm-performance/static/js/main.f716f45f.js.map"
+  },
+  "entrypoints": [
+    "static/js/main.f716f45f.js"
+  ]
+}
