@@ -1,11 +1,12 @@
 {
   "files": {
-    "main.js": "/wasm-stl-thumbnailer/static/js/main.b0b9918a.js",
+    "main.js": "/wasm-stl-thumbnailer/static/js/main.cf9a0c85.js",
     "static/media/wasm_stl_thumbnailer_bg.wasm": "/wasm-stl-thumbnailer/static/media/wasm_stl_thumbnailer_bg.bc42042ab0faaa75ef08.wasm",
+    "static/media/Magnet_holder.stl": "/wasm-stl-thumbnailer/static/media/Magnet_holder.2966ab03e82391a7b72d.stl",
     "index.html": "/wasm-stl-thumbnailer/index.html",
-    "main.b0b9918a.js.map": "/wasm-stl-thumbnailer/static/js/main.b0b9918a.js.map"
+    "main.cf9a0c85.js.map": "/wasm-stl-thumbnailer/static/js/main.cf9a0c85.js.map"
   },
   "entrypoints": [
-    "static/js/main.b0b9918a.js"
+    "static/js/main.cf9a0c85.js"
   ]
 }
