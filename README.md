@@ -1,12 +1,13 @@
 ## About
 Generates a PNG render from an STL file. 2-3x faster than Three.js for first render due to GPU pre-initilization, 10-20% faster for future renders. Built with Web Assembly and WebGPU. 
-
+## Demo
+https://adamgerhant.github.io/wasm-stl-thumbnailer/
 ## Usage
 ```
 import { useEffect, useState} from 'react'
 import init, * as wasm from "wasm-stl-thumbnailer"
 
-const Usage = () => {
+const App = () => {
 
     //initialze Web Assembly
     useEffect(()=>{
@@ -42,7 +43,7 @@ const Usage = () => {
     )
 }
 
-export default Usage
+export default App
 ```
 
 ## Performance
