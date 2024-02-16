@@ -81,7 +81,7 @@ pub async fn load_model(
         let max_dimension = calculate_max_dimension(&centroid_vertices);
         
         // Determine the scaling factor needed to achieve the desired height
-        let desired_height = 6.0; // Example desired height
+        let desired_height = 6.0; 
         let scaling_factor = desired_height / max_dimension;
 
         let mut vertices = Vec::new();
@@ -282,8 +282,7 @@ pub async fn load_model(
                     })
                     .collect::<Vec<_>>();
 
-                    info!("vertices: {:#?}",vertices);
-                    info!("indices: {:#?}", m.mesh.indices);
+
 
                 let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("mesh Vertex Buffer")),

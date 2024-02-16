@@ -195,17 +195,32 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
-        sample_count: 1,
+        sample_count: 4,
         dimension: wgpu::TextureDimension::D2,
         format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::COPY_SRC
-            | wgpu::TextureUsages::RENDER_ATTACHMENT
-            ,
+        usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
         label: None,
         view_formats: &[],
     };
     let texture = device.create_texture(&texture_desc);
     let texture_view = texture.create_view(&Default::default());
+
+    let output_texture_desc = wgpu::TextureDescriptor {
+        size: wgpu::Extent3d {
+            width: texture_size,
+            height: texture_size,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+        label: None,
+        view_formats: &[],
+    };
+    let output_texture = device.create_texture(&output_texture_desc);
+    let output_texture_view = output_texture.create_view(&Default::default());
 
     // we need to store this for later
     let u32_size = std::mem::size_of::<u32>() as u32;
@@ -415,7 +430,7 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
             bias: wgpu::DepthBiasState::default(),
         }),
         multisample: wgpu::MultisampleState {
-            count: 1,
+            count: 4,
             mask: !0,
             alpha_to_coverage_enabled: false,
         },
@@ -435,7 +450,7 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &texture_view,
-                resolve_target: None,
+                resolve_target: Some(&output_texture_view),
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
                         r: 1.0,
@@ -471,7 +486,7 @@ async fn render(stl_bytestream: &[u8]) -> Vec<u8> {
     encoder.copy_texture_to_buffer(
         wgpu::ImageCopyTexture {
             aspect: wgpu::TextureAspect::All,
-            texture: &texture,
+            texture: &output_texture,
             mip_level: 0,
             origin: wgpu::Origin3d::ZERO,
         },
@@ -526,4 +541,36 @@ pub async fn stl_to_png(stl_bytestream: &[u8]) -> Result<JsValue, JsValue> {
     let uint8_array = Uint8Array::from(render.as_slice());
     let js_value: JsValue = uint8_array.into();
     Ok(js_value)
+}
+
+#[wasm_bindgen]
+pub async fn initialize_gpu(){
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::all(),
+        ..Default::default()
+    });
+    
+
+    let adapter = instance
+        .request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::default(),
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        })
+        .await
+        .unwrap();
+
+
+    let (device, queue) = adapter
+        .request_device(
+            &wgpu::DeviceDescriptor {
+                label: None,
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::downlevel_webgl2_defaults()
+               
+            },
+            None, // Trace path
+        )
+        .await
+        .unwrap();
 }
