@@ -1,11 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-
+import Performance from './Performance';
+import Usage from './Usage';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  <>
+    {<Performance/>}
+    {/*<Usage/>*/}
+  </>
+    
 );
 

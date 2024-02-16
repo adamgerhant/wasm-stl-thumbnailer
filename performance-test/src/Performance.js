@@ -1,39 +1,42 @@
 import { useEffect, useState, useRef } from 'react'
 import {StlViewer} from "react-stl-viewer";
 import init, * as wasm from "wasm-stl-thumbnailer"
-
-const App = () => {
-
+import Magnet_holder from "./Magnet_holder.stl"
+const Performance = () => {
+  
   const [file, setFile] = useState()
-  const [startTime, setStartTime] = useState(performance.now())
+  const [startTimeState, setStartTimeState] = useState()
 
   useEffect(()=>{
     init()
-    
   },[])
 
  
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
     setFile(file)
-    const fileUploadTime =performance.now()
-    setStartTime(fileUploadTime)
+    const startTime = performance.now()
+    setStartTimeState(startTime)
+    wasmThumbnailer(file, startTime) 
+  }
+  
+  const wasmThumbnailer = async (file, startTime)=>{
     if (file) {
       try {
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
-        //const pngByteStreamStartTime = performance.now();
         const pngByteStream = await wasm.stl_to_png(uint8Array);
-        //const pngByteStreamEndTime = performance.now();
 
         const blob = new Blob([pngByteStream], { type: 'image/png' });
         const dataUrl = URL.createObjectURL(blob);
-        const renderTime = (performance.now()-fileUploadTime).toFixed(2)
+        const renderTime = (performance.now()-startTime).toFixed(2)
         console.log(`time for wasm render: ${renderTime}`)
 
         const img = document.createElement('img');
         img.src =dataUrl;
+        img.style.border = '1px solid black'; 
+
         const label = document.createElement('p');
         label.textContent = `Render time: ${renderTime} ms`
 
@@ -46,8 +49,7 @@ const App = () => {
         console.error('Error reading file:', error.message);
       }
     }
-  }
-  
+  } 
 
   const captureImage = () => {
 
@@ -56,17 +58,18 @@ const App = () => {
       var canvas = document.getElementById('3d_canvas')?.firstChild?.firstChild;
       if(canvas){
         const image = canvas.toDataURL();
-        const renderTime = (performance.now()-startTime).toFixed(2)
+        const renderTime = (performance.now()-startTimeState).toFixed(2)
 
         console.log(`time for stl viewer render ${renderTime}`)
 
-        const imgElement = document.createElement('img');
-        imgElement.src = image;
+        const img = document.createElement('img');
+        img.src = image;
+        img.style.border = '1px solid black'; 
         const label = document.createElement('p');
         label.textContent = `Render time: ${renderTime} ms`
 
         const div = document.getElementById('react-stl-renders');
-        div.appendChild(imgElement);
+        div.appendChild(img);
         div.appendChild(label)
 
       }
@@ -75,14 +78,34 @@ const App = () => {
     } , 10)
   }
   
+  const loadFile = () =>{
+    fetch(Magnet_holder).then(res => {
+      return res.blob();
+    }).then(blob => {
+      const file = new File([blob], "Magnet_holder", { type: "application/octet-stream" });
+      setFile(file)
+      const startTime = performance.now()
+      setStartTimeState(startTime)
+      wasmThumbnailer(file, startTime)
+    })
+    .catch(error => {
+      console.error('Error fetching the file:', error);
+    });
+    
+  }
   const fileURL = file?window.URL.createObjectURL(file):"";
 
 
 
   return(
-    <div style={{ minHeight:"100vh"}}>
-      <div style={{padding:"5px", display:"flex", height:"500px", alignItems:"center", justifyContent:"center"}}>     
-          <input type="file" onChange={handleFileChange}/>
+    <div style={{display:"flex"}}>
+      <div style={{padding:"5px", display:"flex", flexDirection:"column", alignItems:"center"}}>     
+          <div style={{display:"flex", width:"500px", padding:"50px"}}>
+            <input type="file" onChange={handleFileChange}/>
+            <button onClick={()=>loadFile()} style={{width:"200px"}}>Load Example File</button>
+          </div>
+          <h3 style={{fontFamily:"sans-serif"}}>react-stl-viewer component</h3>
+
           <div style={{ border:"1px solid black", width:"512px", height:"512px"}}>
             {fileURL&&
             
@@ -92,7 +115,7 @@ const App = () => {
                   width:"512px",
                   height:"512px"
                 }}
-                
+                orbitControls
                 onFinishLoading={()=>captureImage()}
                 canvasId='3d_canvas'
               />
@@ -100,12 +123,14 @@ const App = () => {
             }
           </div>
       </div>
-      <div style={{display:"flex"}}>
-        <div style={{display:"flex", flexDirection:"column", alignItems:"center", width:"50%"}} id="web-assembly-renders">
+      <div style={{display:"flex", flex:"1"}}>
+        <div style={{display:"flex", flexDirection:"column", alignItems:"center", width:"50%"}} >
             <h3 style={{fontFamily:"sans-serif"}}>Web Assembly Renders</h3>
+            <div style={{display:"flex", flexDirection:"column-reverse", alignItems:"center"}} id="web-assembly-renders"/>
         </div>
-        <div style={{display:"flex", flexDirection:"column", alignItems:"center", width:"50%"}} id="react-stl-renders">
-            <h3 style={{fontFamily:"sans-serif"}}>React STL Viewer Renders</h3>
+        <div style={{display:"flex", flexDirection:"column", alignItems:"center", width:"50%"}}>
+            <h3 style={{fontFamily:"sans-serif"}}>react-stl-viewer Renders</h3> 
+            <div style={{display:"flex", flexDirection:"column-reverse", alignItems:"center"}} id="react-stl-renders"/>
         </div>
       </div>
       
@@ -116,4 +141,4 @@ const App = () => {
 }
 
 
-export default App
+export default Performance
