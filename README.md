@@ -14,7 +14,7 @@ import init, * as wasm from "wasm-stl-thumbnailer"
 
 const App = () => {
 
-    //initialze Web Assembly
+    //initialize Web Assembly
     useEffect(()=>{
         init()
     },[])
