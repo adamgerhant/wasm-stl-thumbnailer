@@ -55,7 +55,7 @@ export default App
 ![render7](https://github.com/adamgerhant/wasm-stl-thumbnailer/assets/116332429/1eaa4692-ba75-4348-aff0-70ea2a8a4b2c)
 
 ## Performance
-Performance was tested with the demo site, which compares the wasm-stl-thumbnailer to the [react-stl-thumbnailer](https://www.npmjs.com/package/react-stl-viewer).
+Performance was tested with the demo site, which compares the wasm-stl-thumbnailer to the [react-stl-viewer](https://www.npmjs.com/package/react-stl-viewer).
 Various file sizes were tested, and the time is an average of 5 first renders. The full data is available on [this Google Sheet](https://docs.google.com/spreadsheets/d/1pVuQIuG0zfEBlZs5bSOI_l7UgPihVZnMvkIie5UpIWo/edit?usp=sharing) 
 
 ![optimized bar chart](https://github.com/adamgerhant/wasm-stl-thumbnailer/assets/116332429/ddeaa5c2-73ab-408d-b334-58a578dd50d0)
